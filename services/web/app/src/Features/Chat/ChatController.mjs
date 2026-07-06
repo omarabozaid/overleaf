@@ -48,6 +48,41 @@ async function getMessages(req, res) {
   res.json(messages)
 }
 
+async function getThreads(req, res) {
+  const { project_id: projectId } = req.params
+  const threads = await ChatApiHandler.promises.getThreads(projectId)
+
+  await ChatManager.promises.injectUserInfoIntoThreads(threads)
+  res.json(threads)
+}
+
+async function sendThreadMessage(req, res) {
+  const { project_id: projectId, thread_id: threadId } = req.params
+  const { content } = req.body
+  const userId = SessionManager.getLoggedInUserId(req.session)
+  if (userId == null) {
+    throw new Error('no logged-in user')
+  }
+
+  const comment = await ChatApiHandler.promises.sendComment(
+    projectId,
+    threadId,
+    userId,
+    content
+  )
+
+  const user = await UserInfoManager.promises.getPersonalInfo(comment.user_id)
+  comment.user = UserInfoController.formatPersonalInfo(user)
+  EditorRealTimeController.emitToRoom(
+    projectId,
+    'new-comment',
+    threadId,
+    comment
+  )
+
+  res.sendStatus(204)
+}
+
 async function deleteMessage(req, res) {
   const { project_id: projectId, message_id: messageId } = req.params
   const userId = SessionManager.getLoggedInUserId(req.session)
@@ -61,6 +96,75 @@ async function deleteMessage(req, res) {
     messageId,
     userId,
   })
+  res.sendStatus(204)
+}
+
+async function editThreadMessage(req, res) {
+  const {
+    project_id: projectId,
+    thread_id: threadId,
+    message_id: messageId,
+  } = req.params
+  const { content } = req.body
+  const userId = SessionManager.getLoggedInUserId(req.session)
+  if (userId == null) {
+    throw new Error('no logged-in user')
+  }
+
+  await ChatApiHandler.promises.editMessage(
+    projectId,
+    threadId,
+    messageId,
+    userId,
+    content
+  )
+
+  EditorRealTimeController.emitToRoom(
+    projectId,
+    'edit-message',
+    threadId,
+    messageId,
+    content
+  )
+  res.sendStatus(204)
+}
+
+async function deleteThreadMessage(req, res) {
+  const { project_id: projectId, thread_id: threadId, message_id: messageId } =
+    req.params
+
+  await ChatApiHandler.promises.deleteMessage(projectId, threadId, messageId)
+
+  EditorRealTimeController.emitToRoom(
+    projectId,
+    'delete-message',
+    threadId,
+    messageId
+  )
+  res.sendStatus(204)
+}
+
+async function deleteOwnThreadMessage(req, res) {
+  const { project_id: projectId, thread_id: threadId, message_id: messageId } =
+    req.params
+  const userId = SessionManager.getLoggedInUserId(req.session)
+  if (userId == null) {
+    throw new Error('no logged-in user')
+  }
+
+  await ChatApiHandler.promises.deleteUserMessage(
+    projectId,
+    threadId,
+    userId,
+    messageId
+  )
+
+  EditorRealTimeController.emitToRoom(
+    projectId,
+    'delete-message',
+    threadId,
+    messageId
+  )
   res.sendStatus(204)
 }
 
@@ -89,7 +193,12 @@ async function editMessage(req, res, next) {
 
 export default {
   sendMessage: expressify(sendMessage),
+  sendThreadMessage: expressify(sendThreadMessage),
   getMessages: expressify(getMessages),
+  getThreads: expressify(getThreads),
   deleteMessage: expressify(deleteMessage),
+  deleteThreadMessage: expressify(deleteThreadMessage),
+  deleteOwnThreadMessage: expressify(deleteOwnThreadMessage),
   editMessage: expressify(editMessage),
+  editThreadMessage: expressify(editThreadMessage),
 }

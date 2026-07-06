@@ -11,8 +11,10 @@ import { DeletedProjectReasons } from './DeletedProjectReasons.mjs'
 import ProjectDuplicator from './ProjectDuplicator.mjs'
 import ProjectCreationHandler from './ProjectCreationHandler.mjs'
 import EditorController from '../Editor/EditorController.mjs'
+import EditorRealTimeController from '../Editor/EditorRealTimeController.mjs'
 import ProjectHelper from './ProjectHelper.mjs'
 import metrics from '@overleaf/metrics'
+import { Project } from '../../models/Project.mjs'
 import { User } from '../../models/User.mjs'
 import SubscriptionLocator from '../Subscription/SubscriptionLocator.mjs'
 import SubscriptionHelper from '../Subscription/SubscriptionHelper.mjs'
@@ -94,6 +96,17 @@ const updateProjectSettingsSchema = z.object({
   }),
 })
 
+const updateTrackChangesSchema = z.object({
+  params: z.object({
+    Project_id: zz.coercedObjectId(ObjectId),
+  }),
+  body: z.object({
+    on: z.boolean().optional(),
+    on_for: z.record(z.string(), z.boolean().optional()).optional(),
+    on_for_guests: z.boolean().optional(),
+  }),
+})
+
 const _ProjectController = {
   _isInPercentageRollout(rolloutName, objectId, percentage) {
     if (Settings.bypassPercentageRollouts === true) {
@@ -167,6 +180,36 @@ const _ProjectController = {
     } else {
       res.sendStatus(500)
     }
+  },
+
+  async updateTrackChanges(req, res) {
+    const { params, body } = parseReq(req, updateTrackChangesSchema)
+    const projectId = params.Project_id
+
+    let trackChangesState
+    if (body.on != null) {
+      trackChangesState = body.on
+    } else {
+      trackChangesState = {
+        ...(body.on_for || {}),
+      }
+      if (body.on_for_guests != null) {
+        trackChangesState.__guests__ = body.on_for_guests
+      }
+    }
+
+    await Project.updateOne(
+      { _id: projectId },
+      { $set: { track_changes: trackChangesState } }
+    ).exec()
+
+    EditorRealTimeController.emitToRoom(
+      projectId,
+      'toggle-track-changes',
+      trackChangesState
+    )
+
+    res.sendStatus(204)
   },
 
   async deleteProject(req, res) {
@@ -1466,6 +1509,7 @@ const ProjectController = {
     _ProjectController.updateProjectAdminSettings
   ),
   updateProjectSettings: expressify(_ProjectController.updateProjectSettings),
+  updateTrackChanges: expressify(_ProjectController.updateTrackChanges),
   userProjectsJson: expressify(_ProjectController.userProjectsJson),
   _buildProjectList: _ProjectController._buildProjectList,
   _buildProjectViewModel: _ProjectController._buildProjectViewModel,

@@ -13,6 +13,25 @@ WORKDIR /overleaf
 COPY --parents libraries/*/package.json .yarn/patches/ services/*/package.json tools/migrations/ package.json yarn.lock .yarnrc.yml /overleaf/
 COPY server-ce/genScript.js server-ce/services.js /overleaf/
 
+# Ensure Yarn 4 runs on a Node runtime with global fetch.
+# The published sharelatex-base:latest image can lag behind the source tree.
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+    rm -f /etc/apt/apt.conf.d/docker-clean \
+&&  echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache \
+&&  apt-get update \
+&&  apt-get install -y ca-certificates curl gnupg \
+&&  mkdir -p /etc/apt/keyrings \
+&&  rm -f /etc/apt/keyrings/nodesource.gpg \
+&&  curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+&&  echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" > /etc/apt/sources.list.d/nodesource.list \
+&&  apt-get update \
+&&  apt-get install -y nodejs \
+&&  node --version
+
+RUN mkdir -p /var/log/overleaf \
+&&  chown www-data:www-data /var/log/overleaf
+
 # Pre-install yarn via corepack so it is available at runtime for all users
 # -------------------------------------------------------------------------
 # Corepack setup, shared between all the images.

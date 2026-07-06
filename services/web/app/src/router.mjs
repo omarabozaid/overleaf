@@ -581,6 +581,30 @@ async function initialize(webRouter, privateApiRouter, publicApiRouter) {
     DocumentUpdaterController.getDoc
   )
   webRouter.post(
+    '/project/:Project_id/doc/:Doc_id/changes/accept',
+    AuthenticationController.requireLogin(),
+    AuthorizationMiddleware.ensureUserCanWriteProjectContent,
+    DocumentUpdaterController.acceptChanges
+  )
+  webRouter.post(
+    '/project/:Project_id/doc/:Doc_id/thread/:thread_id/resolve',
+    AuthenticationController.requireLogin(),
+    AuthorizationMiddleware.ensureUserCanDeleteOrResolveThread,
+    DocumentUpdaterController.resolveThread
+  )
+  webRouter.post(
+    '/project/:Project_id/doc/:Doc_id/thread/:thread_id/reopen',
+    AuthenticationController.requireLogin(),
+    AuthorizationMiddleware.ensureUserCanDeleteOrResolveThread,
+    DocumentUpdaterController.reopenThread
+  )
+  webRouter.delete(
+    '/project/:Project_id/doc/:Doc_id/thread/:thread_id',
+    AuthenticationController.requireLogin(),
+    AuthorizationMiddleware.ensureUserCanDeleteOrResolveThread,
+    DocumentUpdaterController.deleteThread
+  )
+  webRouter.post(
     '/project/:Project_id/settings',
     AuthorizationMiddleware.ensureUserCanWriteProjectSettings,
     ProjectController.updateProjectSettings
@@ -590,6 +614,12 @@ async function initialize(webRouter, privateApiRouter, publicApiRouter) {
     AuthenticationController.requireLogin(),
     AuthorizationMiddleware.ensureUserCanAdminProject,
     ProjectController.updateProjectAdminSettings
+  )
+  webRouter.post(
+    '/project/:Project_id/track_changes',
+    AuthenticationController.requireLogin(),
+    AuthorizationMiddleware.ensureUserCanWriteProjectContent,
+    ProjectController.updateTrackChanges
   )
 
   webRouter.post(
@@ -1015,6 +1045,40 @@ async function initialize(webRouter, privateApiRouter, publicApiRouter) {
   )
 
   if (Features.hasFeature('chat')) {
+    webRouter.get(
+      '/project/:project_id/threads',
+      AuthorizationMiddleware.blockRestrictedUserFromProject,
+      AuthorizationMiddleware.ensureUserCanReadProject,
+      ChatController.getThreads
+    )
+    webRouter.post(
+      '/project/:project_id/thread/:thread_id/messages',
+      AuthenticationController.requireLogin(),
+      AuthorizationMiddleware.blockRestrictedUserFromProject,
+      AuthorizationMiddleware.ensureUserCanReadProject,
+      ChatController.sendThreadMessage
+    )
+    webRouter.post(
+      '/project/:project_id/thread/:thread_id/messages/:message_id/edit',
+      AuthenticationController.requireLogin(),
+      AuthorizationMiddleware.blockRestrictedUserFromProject,
+      AuthorizationMiddleware.ensureUserCanReadProject,
+      ChatController.editThreadMessage
+    )
+    webRouter.delete(
+      '/project/:project_id/thread/:thread_id/messages/:message_id',
+      AuthenticationController.requireLogin(),
+      AuthorizationMiddleware.blockRestrictedUserFromProject,
+      AuthorizationMiddleware.ensureUserCanReadProject,
+      ChatController.deleteThreadMessage
+    )
+    webRouter.delete(
+      '/project/:project_id/thread/:thread_id/own-messages/:message_id',
+      AuthenticationController.requireLogin(),
+      AuthorizationMiddleware.blockRestrictedUserFromProject,
+      AuthorizationMiddleware.ensureUserCanReadProject,
+      ChatController.deleteOwnThreadMessage
+    )
     webRouter.get(
       '/project/:project_id/messages',
       AuthorizationMiddleware.blockRestrictedUserFromProject,

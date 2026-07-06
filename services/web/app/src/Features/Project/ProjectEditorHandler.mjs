@@ -3,7 +3,7 @@ import Path from 'node:path'
 let ProjectEditorHandler
 
 export default ProjectEditorHandler = {
-  trackChangesAvailable: false,
+  trackChangesAvailable: true,
 
   buildProjectModelView(
     project,
@@ -50,14 +50,14 @@ export default ProjectEditorHandler = {
       references: false,
       referencesSearch: false,
       mendeley: false,
-      trackChanges: false,
+      trackChanges: true,
       trackChangesVisible: ProjectEditorHandler.trackChangesAvailable,
       symbolPalette: false,
     })
+    result.features.trackChanges = true
+    result.features.trackChangesVisible = true
 
-    if (result.features.trackChanges) {
-      result.trackChangesState = project.track_changes || false
-    }
+    result.trackChangesState = project.track_changes || false
 
     // Originally these two feature flags were both signalled by the now-deprecated `references` flag.
     // For older users, the presence of the `references` feature flag should still turn on these features.
