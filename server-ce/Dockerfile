@@ -55,6 +55,11 @@ RUN --mount=type=cache,target=/root/.cache \
     --mount=type=cache,target=/root/.yarn/berry/cache,id=server-ce-yarn-cache \
     --mount=type=cache,target=/overleaf/.yarn/cache,id=server-ce-project-yarn-cache \
     --mount=type=cache,target=/tmp,id=server-ce-tmp-cache \
+    mkdir -p /root/.cache/tmp \
+&&  TMPDIR=/root/.cache/tmp \
+    YARN_CACHE_FOLDER=/root/.yarn/berry/cache \
+    YARN_ENABLE_GLOBAL_CACHE=1 \
+    YARN_NETWORK_CONCURRENCY=8 \
     node genScript install | bash
 
 # Add the actual source files
@@ -65,7 +70,12 @@ RUN --mount=type=cache,target=/root/.cache \
     --mount=type=cache,target=/overleaf/.yarn/cache,id=server-ce-project-yarn-cache \
     --mount=type=cache,target=/overleaf/services/web/node_modules/.cache,id=server-ce-webpack-cache \
     --mount=type=cache,target=/tmp,id=server-ce-tmp-cache \
-    YARN_CACHE_FOLDER=/root/.yarn/berry/cache node genScript compile | bash
+    mkdir -p /root/.cache/tmp \
+&&  TMPDIR=/root/.cache/tmp \
+    YARN_CACHE_FOLDER=/root/.yarn/berry/cache \
+    YARN_ENABLE_GLOBAL_CACHE=1 \
+    YARN_NETWORK_CONCURRENCY=8 \
+    node genScript compile | bash
 
 # Copy runit service startup scripts to its location
 # --------------------------------------------------
